@@ -7,12 +7,15 @@ import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.requests.GatewayIntent;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import net.dv8tion.jda.api.utils.MarkdownSanitizer;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
@@ -26,6 +29,7 @@ public class DiscordConsole extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        getServer().getPluginManager().registerEvents(new GameEvents(), this);
         startBot();
     }
 
@@ -85,6 +89,44 @@ public class DiscordConsole extends JavaPlugin {
         return false;
     }
 
+    // ===== إرسال للقنوات =====
+
+    private void sendToChannel(String channelId, String text) {
+        if (jda == null || channelId == null || channelId.isBlank() || channelId.matches("0+")) return;
+        var channel = jda.getTextChannelById(channelId);
+        if (channel != null) channel.sendMessage(text).queue();
+    }
+
+    // يمنع الماركدوان والمنشن (@everyone) من التأثير على ديسكورد
+    private String safe(String s) {
+        return MarkdownSanitizer.escape(s).replace("@", "@\u200B");
+    }
+
+    // ===== أحداث اللعبة =====
+
+    private class GameEvents implements org.bukkit.event.Listener {
+
+        @EventHandler
+        public void onJoin(PlayerJoinEvent e) {
+            sendToChannel(getConfig().getString("join-leave-channel-id", ""),
+                    "🟢 **" + safe(e.getPlayer().getName()) + "** دخل السيرفر");
+        }
+
+        @EventHandler
+        public void onQuit(PlayerQuitEvent e) {
+            sendToChannel(getConfig().getString("join-leave-channel-id", ""),
+                    "🔴 **" + safe(e.getPlayer().getName()) + "** طلع من السيرفر");
+        }
+
+        @EventHandler
+        public void onChat(AsyncPlayerChatEvent e) {
+            sendToChannel(getConfig().getString("chat-channel-id", ""),
+                    "💬 **" + safe(e.getPlayer().getName()) + "**: " + safe(e.getMessage()));
+        }
+    }
+
+    // ===== أوامر ديسكورد =====
+
     private class Listener extends ListenerAdapter {
         @Override
         public void onMessageReceived(MessageReceivedEvent e) {
@@ -116,7 +158,8 @@ public class DiscordConsole extends JavaPlugin {
             Bukkit.getScheduler().runTask(DiscordConsole.this, () -> {
                 List<String> out = new CopyOnWriteArrayList<>();
                 CommandSender sender = Bukkit.createCommandSender(
-                        c -> out.add(PlainTextComponentSerializer.plainText().serialize(c)));
+                        c -> out.add(net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
+                                .plainText().serialize(c)));
                 boolean ok;
                 try {
                     ok = Bukkit.dispatchCommand(sender, command);
@@ -134,4 +177,4 @@ public class DiscordConsole extends JavaPlugin {
             });
         }
     }
-  }
+}
