@@ -1,0 +1,14 @@
+name: DiscordConsole
+version: 1.0.0
+main: com.example.discordconsole.DiscordConsole
+api-version: "1.20"
+description: Execute console commands from Discord
+commands:
+  discordconsole:
+    description: Reload the DiscordConsole config
+    usage: /discordconsole reload
+    permission: discordconsole.admin
+permissions:
+  discordconsole.admin:
+    default: op
+    
