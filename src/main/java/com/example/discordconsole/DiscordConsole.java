@@ -1,5 +1,6 @@
 package com.example.discordconsole;
 
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Member;
@@ -18,6 +19,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.awt.Color;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -97,9 +99,26 @@ public class DiscordConsole extends JavaPlugin {
         if (channel != null) channel.sendMessage(text).queue();
     }
 
+    private void sendEmbedToChannel(String channelId, EmbedBuilder embed) {
+        if (jda == null || channelId == null || channelId.isBlank() || channelId.matches("0+")) return;
+        var channel = jda.getTextChannelById(channelId);
+        if (channel != null) channel.sendMessageEmbeds(embed.build()).queue();
+    }
+
     // يمنع الماركدوان والمنشن (@everyone) من التأثير على ديسكورد
     private String safe(String s) {
         return MarkdownSanitizer.escape(s).replace("@", "@\u200B");
+    }
+
+    private EmbedBuilder playerEmbed(String title, String name, Color color, String description) {
+        String head = "https://mc-heads.net/avatar/" + name + "/128";
+        return new EmbedBuilder()
+                .setColor(color)
+                .setTitle(title)
+                .setDescription(description)
+                .setAuthor(name, null, head)
+                .setThumbnail(head)
+                .setTimestamp(java.time.Instant.now());
     }
 
     // ===== أحداث اللعبة =====
@@ -108,14 +127,18 @@ public class DiscordConsole extends JavaPlugin {
 
         @EventHandler
         public void onJoin(PlayerJoinEvent e) {
-            sendToChannel(getConfig().getString("join-leave-channel-id", ""),
-                    "🟢 **" + safe(e.getPlayer().getName()) + "** دخل السيرفر");
+            String name = e.getPlayer().getName();
+            sendEmbedToChannel(getConfig().getString("join-leave-channel-id", ""),
+                    playerEmbed("Player Joined", name, new Color(0x2ECC71),
+                            "**" + safe(name) + "** joined the server"));
         }
 
         @EventHandler
         public void onQuit(PlayerQuitEvent e) {
-            sendToChannel(getConfig().getString("join-leave-channel-id", ""),
-                    "🔴 **" + safe(e.getPlayer().getName()) + "** طلع من السيرفر");
+            String name = e.getPlayer().getName();
+            sendEmbedToChannel(getConfig().getString("join-leave-channel-id", ""),
+                    playerEmbed("Player Left", name, new Color(0xE74C3C),
+                            "**" + safe(name) + "** left the server"));
         }
 
         @EventHandler
